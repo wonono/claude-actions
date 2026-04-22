@@ -2,16 +2,37 @@
   "name": "claude-actions",
   "displayName": "Claude Actions",
   "description": "Unofficial extension. Versioned, shareable Claude prompts runnable from the VS Code sidebar.",
-  "version": "0.0.46",
+  "version": "0.1.0",
   "publisher": "wonono",
+  "license": "MIT",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/wonono/claude-actions.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wonono/claude-actions/issues"
+  },
+  "homepage": "https://github.com/wonono/claude-actions#readme",
+  "keywords": [
+    "claude",
+    "anthropic",
+    "ai",
+    "prompts",
+    "automation",
+    "actions",
+    "workflow",
+    "llm"
+  ],
+  "galleryBanner": {
+    "color": "#0F172A",
+    "theme": "dark"
   },
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
+    "AI",
     "Other"
   ],
   "main": "./dist/extension.js",

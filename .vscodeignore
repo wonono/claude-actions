@@ -9,6 +9,7 @@ esbuild.config.mjs
 hooks/**
 **/*.md
 !README.md
+!CHANGELOG.md
 *.vsix
 .DS_Store
 claude-actions.code-workspace
