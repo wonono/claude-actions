@@ -7,6 +7,14 @@ import { Action } from "./ActionModel";
 
 export type ActionState = "ready" | "in_progress";
 
+export interface ActionFinishEvent {
+  actionId: string;
+  status: "done" | "failed";
+  message?: string;
+  endedAt: number;
+  durationMs: number;
+}
+
 const PROGRESS_THROTTLE_MS = 500;
 
 interface RunningEntry {
@@ -26,7 +34,11 @@ export class ActionRunner implements vscode.Disposable {
   private readonly _onProgress = new vscode.EventEmitter<string>();
   readonly onProgress = this._onProgress.event;
 
+  private readonly _onDidFinish = new vscode.EventEmitter<ActionFinishEvent>();
+  readonly onDidFinish = this._onDidFinish.event;
+
   private readonly running = new Map<string, RunningEntry>();
+  private uptimeTicker: NodeJS.Timeout | undefined;
 
   constructor(private readonly logs: LogFactory, private readonly workspaceRoot: string) {}
 
@@ -85,8 +97,31 @@ export class ActionRunner implements vscode.Disposable {
       }),
     };
     this.running.set(action.id, entry);
+    this.ensureUptimeTicker();
     this._onDidChangeState.fire(action.id);
     return true;
+  }
+
+  private ensureUptimeTicker(): void {
+    if (this.uptimeTicker) {
+      return;
+    }
+    this.uptimeTicker = setInterval(() => {
+      if (this.running.size === 0) {
+        this.stopUptimeTicker();
+        return;
+      }
+      for (const id of this.running.keys()) {
+        this._onProgress.fire(id);
+      }
+    }, 1000);
+  }
+
+  private stopUptimeTicker(): void {
+    if (this.uptimeTicker) {
+      clearInterval(this.uptimeTicker);
+      this.uptimeTicker = undefined;
+    }
   }
 
   private recordLine(actionId: string, line: string): void {
@@ -141,14 +176,22 @@ export class ActionRunner implements vscode.Disposable {
     entry?.channel.appendLine(`[claude-actions] exit code=${code ?? "null"}${sig}`);
 
     const showOutput = (c: vscode.OutputChannel): void => c.show(true);
+    const endedAt = Date.now();
+    const durationMs = entry ? endedAt - entry.startedAt : 0;
 
     if (signal === "SIGTERM" || signal === "SIGKILL") {
-      // User-initiated kill via the stop command — no error dialog.
+      // User-initiated kill via the stop command — no error dialog, no last-run entry.
       vscode.window.setStatusBarMessage(`Action "${action.name}" stopped`, 3000);
       return;
     }
 
     if (code === 0) {
+      this._onDidFinish.fire({
+        actionId: action.id,
+        status: "done",
+        endedAt,
+        durationMs,
+      });
       vscode.window
         .showInformationMessage(`Action "${action.name}" completed`, "Show output")
         .then((choice) => {
@@ -158,6 +201,14 @@ export class ActionRunner implements vscode.Disposable {
         });
     } else {
       const stderr = entry?.stderrBuf ?? "";
+      const tail = lastNonEmptyLine(stderr);
+      this._onDidFinish.fire({
+        actionId: action.id,
+        status: "failed",
+        message: tail ?? `exit ${code ?? "?"}`,
+        endedAt,
+        durationMs,
+      });
       const actions = looksLikeTrustError(stderr)
         ? ["Show output", "Initialize workspace"]
         : ["Show output"];
@@ -186,6 +237,18 @@ export class ActionRunner implements vscode.Disposable {
 
     entry?.channel.appendLine(`[claude-actions] spawn error: ${err.code ?? ""} ${err.message}`);
 
+    const endedAt = Date.now();
+    const durationMs = entry ? endedAt - entry.startedAt : 0;
+    const message =
+      err.code === "ENOENT" ? "claude CLI not found" : err.message || String(err.code ?? "spawn error");
+    this._onDidFinish.fire({
+      actionId: action.id,
+      status: "failed",
+      message,
+      endedAt,
+      durationMs,
+    });
+
     if (err.code === "ENOENT") {
       vscode.window.showErrorMessage(
         "Claude CLI not found in PATH. See the README for setup instructions.",
@@ -209,7 +272,20 @@ export class ActionRunner implements vscode.Disposable {
       entry.handle.kill();
     }
     this.running.clear();
+    this.stopUptimeTicker();
     this._onDidChangeState.dispose();
     this._onProgress.dispose();
+    this._onDidFinish.dispose();
   }
+}
+
+function lastNonEmptyLine(s: string): string | undefined {
+  const lines = s.split(/\r?\n/);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const trimmed = lines[i].trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return undefined;
 }

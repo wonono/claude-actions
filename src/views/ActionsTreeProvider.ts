@@ -3,6 +3,7 @@ import { Action } from "../actions/ActionModel";
 import { ActionStore } from "../actions/ActionStore";
 import { ActionRunner } from "../actions/ActionRunner";
 import { PinStore } from "../actions/PinStore";
+import { LastRun, LastRunStore } from "../actions/LastRunStore";
 import { iconForAction } from "./icons";
 
 type TreeNode =
@@ -22,12 +23,22 @@ export class ActionsTreeProvider
     private readonly store: ActionStore,
     private readonly runner: ActionRunner,
     private readonly pins: PinStore,
+    private readonly lastRuns: LastRunStore,
   ) {
     this.subs.push(store.onDidChange(() => this._onDidChange.fire()));
     this.subs.push(runner.onDidChangeState(() => this._onDidChange.fire()));
     this.subs.push(pins.onDidChange(() => this._onDidChange.fire()));
     this.subs.push(
-      runner.onProgress((actionId) => {
+      runner.onProgress(() => {
+        // Full refresh. Firing on a specific element doesn't reliably
+        // re-query its subtree when the TreeNode identity isn't preserved
+        // (we build new objects every getChildren). The tree is tiny, so
+        // undefined here is fine and keeps the uptime + last-line live.
+        this._onDidChange.fire();
+      }),
+    );
+    this.subs.push(
+      lastRuns.onDidChange((actionId) => {
         const action = store.getById(actionId);
         if (action) {
           this._onDidChange.fire({ kind: "action", action });
@@ -113,6 +124,7 @@ export class ActionsTreeProvider
   private renderActionItem(action: Action): vscode.TreeItem {
     const running = this.runner.isRunning(action.id);
     const pinned = this.pins.isPinned(action.id);
+    const lastRun = running ? undefined : this.lastRuns.get(action.id);
     const item = new vscode.TreeItem(
       action.name,
       running
@@ -120,7 +132,7 @@ export class ActionsTreeProvider
         : vscode.TreeItemCollapsibleState.None,
     );
     item.id = action.id;
-    item.tooltip = buildTooltip(action);
+    item.tooltip = buildTooltip(action, lastRun);
     item.iconPath = iconForAction(action.icon, running);
     item.contextValue = `action.${running ? "in_progress" : "ready"}.${pinned ? "pinned" : "unpinned"}`;
     item.command = {
@@ -178,7 +190,7 @@ function formatUptime(ms: number): string {
   return `${min}m ${sec}s`;
 }
 
-function buildTooltip(action: Action): vscode.MarkdownString {
+function buildTooltip(action: Action, lastRun: LastRun | undefined): vscode.MarkdownString {
   const md = new vscode.MarkdownString();
   md.isTrusted = false;
   md.appendMarkdown(`**${action.name}**\n\n`);
@@ -194,8 +206,33 @@ function buildTooltip(action: Action): vscode.MarkdownString {
         : "";
     md.appendMarkdown(`Parameter: *${action.parameter.name}*${suffix}\n\n`);
   }
+  if (lastRun) {
+    const when = new Date(lastRun.endedAt).toLocaleString();
+    const duration = formatDuration(lastRun.durationMs);
+    if (lastRun.status === "done") {
+      md.appendMarkdown(`Last run: **done** · ${duration} · ${when}\n\n`);
+    } else {
+      md.appendMarkdown(`Last run: **failed** · ${duration} · ${when}\n\n`);
+      if (lastRun.message) {
+        md.appendCodeblock(lastRun.message, "text");
+      }
+    }
+  }
   md.appendMarkdown(`\`${action.filePath}\`\n\n`);
   const preview = action.body.length > 240 ? action.body.slice(0, 240) + "…" : action.body;
   md.appendCodeblock(preview, "markdown");
   return md;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  const totalSec = Math.round(ms / 1000);
+  if (totalSec < 60) {
+    return `${totalSec}s`;
+  }
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}m ${sec}s`;
 }

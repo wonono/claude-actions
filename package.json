@@ -2,7 +2,7 @@
   "name": "claude-actions",
   "displayName": "Claude Actions",
   "description": "Unofficial extension. Versioned, shareable Claude prompts runnable from the VS Code sidebar.",
-  "version": "0.1.1",
+  "version": "0.1.32",
   "publisher": "wonono",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -92,7 +92,8 @@
       },
       {
         "command": "claude-actions.showOutput",
-        "title": "Show Action Output"
+        "title": "Show Action Output",
+        "icon": "$(output)"
       },
       {
         "command": "claude-actions.pin",
@@ -113,6 +114,11 @@
         "command": "claude-actions.updateClaude",
         "title": "Claude Actions: Update Claude CLI",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "claude-actions.delete",
+        "title": "Delete Action",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -145,14 +151,24 @@
           "group": "inline@1"
         },
         {
+          "command": "claude-actions.showOutput",
+          "when": "view == claude-actions.list && viewItem =~ /^action\\.ready/",
+          "group": "inline@2"
+        },
+        {
           "command": "claude-actions.pin",
           "when": "view == claude-actions.list && viewItem =~ /\\.unpinned$/",
-          "group": "inline@2"
+          "group": "inline@3"
         },
         {
           "command": "claude-actions.unpin",
           "when": "view == claude-actions.list && viewItem =~ /\\.pinned$/",
-          "group": "inline@2"
+          "group": "inline@3"
+        },
+        {
+          "command": "claude-actions.delete",
+          "when": "view == claude-actions.list && viewItem =~ /^action\\.ready/",
+          "group": "inline@4"
         }
       ]
     }

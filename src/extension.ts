@@ -2,9 +2,11 @@ import * as vscode from "vscode";
 import { ActionStore } from "./actions/ActionStore";
 import { ActionRunner } from "./actions/ActionRunner";
 import { PinStore } from "./actions/PinStore";
+import { LastRunStore } from "./actions/LastRunStore";
 import { ActionsTreeProvider } from "./views/ActionsTreeProvider";
 import { registerRunCommand } from "./commands/runAction";
 import { registerStopCommand } from "./commands/stopAction";
+import { registerDeleteCommand } from "./commands/deleteAction";
 import { registerRefreshCommand } from "./commands/refresh";
 import { registerInitWorkspaceCommand } from "./commands/initWorkspace";
 import { registerPinCommands } from "./commands/pinAction";
@@ -44,10 +46,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const pins = new PinStore(context.workspaceState);
   context.subscriptions.push(pins);
 
+  const lastRuns = new LastRunStore();
+  context.subscriptions.push(lastRuns);
+  context.subscriptions.push(
+    runner.onDidFinish((ev) => {
+      lastRuns.record(ev.actionId, {
+        status: ev.status,
+        message: ev.message,
+        endedAt: ev.endedAt,
+        durationMs: ev.durationMs,
+      });
+    }),
+  );
+
   const versionChecker = new ClaudeVersionChecker(log);
   context.subscriptions.push(versionChecker);
 
-  const treeProvider = new ActionsTreeProvider(store, runner, pins);
+  const treeProvider = new ActionsTreeProvider(store, runner, pins, lastRuns);
   context.subscriptions.push(treeProvider);
   const treeView = vscode.window.createTreeView("claude-actions.list", {
     treeDataProvider: treeProvider,
@@ -94,6 +109,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(registerRunCommand(store, runner));
   context.subscriptions.push(registerStopCommand(runner));
+  context.subscriptions.push(registerDeleteCommand(store, runner));
   context.subscriptions.push(registerRefreshCommand(store));
   context.subscriptions.push(registerInitWorkspaceCommand());
   for (const d of registerPinCommands(pins)) {
