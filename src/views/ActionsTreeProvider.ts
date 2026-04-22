@@ -133,7 +133,7 @@ export class ActionsTreeProvider
     );
     item.id = action.id;
     item.tooltip = buildTooltip(action, lastRun);
-    item.iconPath = iconForAction(action.icon, running);
+    item.iconPath = iconForAction(action.icon, running, lastRun?.status === "failed");
     item.contextValue = `action.${running ? "in_progress" : "ready"}.${pinned ? "pinned" : "unpinned"}`;
     item.command = {
       command: "vscode.open",

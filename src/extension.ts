@@ -4,6 +4,7 @@ import { ActionRunner } from "./actions/ActionRunner";
 import { PinStore } from "./actions/PinStore";
 import { LastRunStore } from "./actions/LastRunStore";
 import { ActionsTreeProvider } from "./views/ActionsTreeProvider";
+import { FailureStatusBar } from "./views/FailureStatusBar";
 import { registerRunCommand } from "./commands/runAction";
 import { registerStopCommand } from "./commands/stopAction";
 import { registerDeleteCommand } from "./commands/deleteAction";
@@ -13,6 +14,7 @@ import { registerPinCommands } from "./commands/pinAction";
 import { registerShowOutputCommand } from "./commands/showOutput";
 import { registerCreateCommand } from "./commands/createAction";
 import { registerUpdateClaudeCommand } from "./commands/updateClaude";
+import { registerReviewFailureCommand } from "./commands/reviewFailure";
 import { createLogFactory } from "./util/log";
 import { ClaudeVersionChecker } from "./util/claudeVersion";
 import { ensureActionsDir, getWorkspaceRoot, setNoActionsContext } from "./util/workspace";
@@ -64,6 +66,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const treeProvider = new ActionsTreeProvider(store, runner, pins, lastRuns);
   context.subscriptions.push(treeProvider);
+
+  const failureStatusBar = new FailureStatusBar(store, runner);
+  context.subscriptions.push(failureStatusBar);
   const treeView = vscode.window.createTreeView("claude-actions.list", {
     treeDataProvider: treeProvider,
   });
@@ -118,6 +123,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(registerShowOutputCommand(logs));
   context.subscriptions.push(registerCreateCommand(logs));
   context.subscriptions.push(registerUpdateClaudeCommand(versionChecker));
+  context.subscriptions.push(registerReviewFailureCommand(store, failureStatusBar, logs));
 
   const watcher = vscode.workspace.createFileSystemWatcher(
     new vscode.RelativePattern(root, ".actions/*.md"),

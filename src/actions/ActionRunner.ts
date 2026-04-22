@@ -23,6 +23,7 @@ interface RunningEntry {
   stderrBuf: string;
   startedAt: number;
   lastLine: string | undefined;
+  lastStdoutLine: string | undefined;
   progressDirty: boolean;
   progressTimer: NodeJS.Timeout | undefined;
 }
@@ -77,6 +78,7 @@ export class ActionRunner implements vscode.Disposable {
       stderrBuf: "",
       startedAt: Date.now(),
       lastLine: undefined,
+      lastStdoutLine: undefined,
       progressDirty: false,
       progressTimer: undefined,
       handle: spawnClaude({
@@ -90,8 +92,8 @@ export class ActionRunner implements vscode.Disposable {
             e.stderrBuf = (e.stderrBuf + text).slice(-4096);
           }
         },
-        onStdoutLine: (line) => this.recordLine(action.id, line),
-        onStderrLine: (line) => this.recordLine(action.id, line),
+        onStdoutLine: (line) => this.recordLine(action.id, line, "stdout"),
+        onStderrLine: (line) => this.recordLine(action.id, line, "stderr"),
         onExit: (code, signal) => this.handleExit(action, code, signal),
         onError: (err) => this.handleError(action, err),
       }),
@@ -124,7 +126,7 @@ export class ActionRunner implements vscode.Disposable {
     }
   }
 
-  private recordLine(actionId: string, line: string): void {
+  private recordLine(actionId: string, line: string, source: "stdout" | "stderr"): void {
     const entry = this.running.get(actionId);
     if (!entry) {
       return;
@@ -134,6 +136,9 @@ export class ActionRunner implements vscode.Disposable {
       return;
     }
     entry.lastLine = trimmed;
+    if (source === "stdout") {
+      entry.lastStdoutLine = trimmed;
+    }
     entry.progressDirty = true;
     if (entry.progressTimer) {
       return;
@@ -186,6 +191,30 @@ export class ActionRunner implements vscode.Disposable {
     }
 
     if (code === 0) {
+      // Exit 0 but the prompt contract requires claude to finish with either
+      // "done" or "failed: <reason>". A "failed:" tail is a semantic failure
+      // — treat it the same as a crashed run from the UI's perspective.
+      const claudeFailure = parseClaudeFailure(entry?.lastStdoutLine);
+      if (claudeFailure !== undefined) {
+        this._onDidFinish.fire({
+          actionId: action.id,
+          status: "failed",
+          message: claudeFailure || "claude reported failure",
+          endedAt,
+          durationMs,
+        });
+        vscode.window
+          .showErrorMessage(
+            `Action "${action.name}" reported failure: ${claudeFailure || "(no reason)"}`,
+            "Show output",
+          )
+          .then((choice) => {
+            if (choice === "Show output" && entry) {
+              showOutput(entry.channel);
+            }
+          });
+        return;
+      }
       this._onDidFinish.fire({
         actionId: action.id,
         status: "done",
@@ -288,4 +317,18 @@ function lastNonEmptyLine(s: string): string | undefined {
     }
   }
   return undefined;
+}
+
+// Contract from RUN_SYSTEM_PROMPT: final stdout line is "done" or
+// "failed: <reason>". Returns the reason (possibly empty) when the marker
+// matches, or undefined when the line looks like success / unknown.
+function parseClaudeFailure(lastLine: string | undefined): string | undefined {
+  if (!lastLine) {
+    return undefined;
+  }
+  const m = lastLine.match(/^failed\s*:?\s*(.*)$/i);
+  if (!m) {
+    return undefined;
+  }
+  return m[1].trim();
 }

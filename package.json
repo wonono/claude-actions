@@ -2,7 +2,7 @@
   "name": "claude-actions",
   "displayName": "Claude Actions",
   "description": "Unofficial extension. Versioned, shareable Claude prompts runnable from the VS Code sidebar.",
-  "version": "0.1.32",
+  "version": "0.1.47",
   "publisher": "wonono",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -119,6 +119,10 @@
         "command": "claude-actions.delete",
         "title": "Delete Action",
         "icon": "$(trash)"
+      },
+      {
+        "command": "claude-actions.reviewFailure",
+        "title": "Claude Actions: Review Failed Action"
       }
     ],
     "menus": {
