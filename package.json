@@ -2,7 +2,7 @@
   "name": "claude-actions",
   "displayName": "Claude Actions",
   "description": "Unofficial extension. Versioned, shareable Claude prompts runnable from the VS Code sidebar.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "wonono",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -160,7 +160,11 @@
   "scripts": {
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
-    "package": "vsce package --out dist/",
+    "package": "vsce package --out dist/ --no-dependencies",
+    "release": "vsce publish --no-dependencies",
+    "release:patch": "vsce publish patch --no-dependencies",
+    "release:minor": "vsce publish minor --no-dependencies",
+    "release:major": "vsce publish major --no-dependencies",
     "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
