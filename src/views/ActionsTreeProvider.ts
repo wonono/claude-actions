@@ -8,8 +8,7 @@ import { iconForAction } from "./icons";
 type TreeNode =
   | { kind: "action"; action: Action }
   | { kind: "progress"; actionId: string }
-  | { kind: "header"; label: string }
-  | { kind: "spacer" };
+  | { kind: "header"; label: string };
 
 export class ActionsTreeProvider
   implements vscode.TreeDataProvider<TreeNode>, vscode.Disposable
@@ -44,51 +43,71 @@ export class ActionsTreeProvider
     if (node.kind === "progress") {
       return this.renderProgressItem(node.actionId);
     }
-    if (node.kind === "header") {
-      return this.renderHeader(node.label);
-    }
-    return this.renderSpacer();
+    return this.renderHeader(node.label);
   }
 
-  getParent(_element: TreeNode): TreeNode | undefined {
-    // Required for TreeView.reveal() to work. All nodes we expose are root
-    // level except for "progress" which is a child of its action — but we
-    // only call reveal() on action nodes, so returning undefined is safe.
+  getParent(element: TreeNode): TreeNode | undefined {
+    if (element.kind === "action") {
+      // An action is nested under a header only when both groups exist —
+      // otherwise the list is flat at root.
+      if (!this.hasBothGroups()) {
+        return undefined;
+      }
+      return this.pins.isPinned(element.action.id)
+        ? { kind: "header", label: "Pinned" }
+        : { kind: "header", label: "Actions" };
+    }
+    if (element.kind === "progress") {
+      const action = this.store.getById(element.actionId);
+      return action ? { kind: "action", action } : undefined;
+    }
     return undefined;
   }
 
   getChildren(element?: TreeNode): TreeNode[] {
     if (!element) {
-      const all = [...this.store.getAll()];
-      const pinned = all
-        .filter((a) => this.pins.isPinned(a.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const unpinned = all
-        .filter((a) => !this.pins.isPinned(a.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const nodes: TreeNode[] = [];
-      // Only show category headers when both groups exist — otherwise the
-      // separation is meaningless (you'd have "Unpinned" as the only group).
-      const showHeaders = pinned.length > 0 && unpinned.length > 0;
-      if (showHeaders) {
-        nodes.push({ kind: "header", label: "Pinned" });
+      if (this.hasBothGroups()) {
+        return [
+          { kind: "header", label: "Pinned" },
+          { kind: "header", label: "Actions" },
+        ];
       }
-      for (const action of pinned) {
-        nodes.push({ kind: "action", action });
-      }
-      if (showHeaders) {
-        nodes.push({ kind: "spacer" });
-        nodes.push({ kind: "header", label: "Actions" });
-      }
-      for (const action of unpinned) {
-        nodes.push({ kind: "action", action });
-      }
-      return nodes;
+      // Only one group populated — skip the headers and render a flat list.
+      return this.allActionsSorted().map((action): TreeNode => ({ kind: "action", action }));
+    }
+    if (element.kind === "header") {
+      const wantPinned = element.label === "Pinned";
+      return this.store
+        .getAll()
+        .filter((a) => this.pins.isPinned(a.id) === wantPinned)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((action): TreeNode => ({ kind: "action", action }));
     }
     if (element.kind === "action" && this.runner.isRunning(element.action.id)) {
       return [{ kind: "progress", actionId: element.action.id }];
     }
     return [];
+  }
+
+  private hasBothGroups(): boolean {
+    const all = this.store.getAll();
+    let hasPinned = false;
+    let hasUnpinned = false;
+    for (const a of all) {
+      if (this.pins.isPinned(a.id)) {
+        hasPinned = true;
+      } else {
+        hasUnpinned = true;
+      }
+      if (hasPinned && hasUnpinned) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private allActionsSorted(): readonly import("../actions/ActionModel").Action[] {
+    return [...this.store.getAll()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private renderActionItem(action: Action): vscode.TreeItem {
@@ -101,7 +120,6 @@ export class ActionsTreeProvider
         : vscode.TreeItemCollapsibleState.None,
     );
     item.id = action.id;
-    item.description = action.description;
     item.tooltip = buildTooltip(action);
     item.iconPath = iconForAction(action.icon, running);
     item.contextValue = `action.${running ? "in_progress" : "ready"}.${pinned ? "pinned" : "unpinned"}`;
@@ -113,15 +131,8 @@ export class ActionsTreeProvider
     return item;
   }
 
-  private renderSpacer(): vscode.TreeItem {
-    const item = new vscode.TreeItem("", vscode.TreeItemCollapsibleState.None);
-    item.id = "spacer:pinned-unpinned";
-    item.contextValue = "spacer";
-    return item;
-  }
-
   private renderHeader(label: string): vscode.TreeItem {
-    const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+    const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Expanded);
     item.id = `header:${label.toLowerCase()}`;
     item.contextValue = "header";
     item.iconPath = new vscode.ThemeIcon(label === "Pinned" ? "pinned" : "list-unordered");
