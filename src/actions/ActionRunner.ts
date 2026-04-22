@@ -50,7 +50,7 @@ export class ActionRunner implements vscode.Disposable {
     return this.running.get(actionId)?.startedAt;
   }
 
-  start(action: Action): boolean {
+  start(action: Action, bodyOverride?: string): boolean {
     if (this.running.has(action.id)) {
       return false;
     }
@@ -59,6 +59,7 @@ export class ActionRunner implements vscode.Disposable {
     channel.clear();
     channel.appendLine(`[claude-actions] starting "${action.name}" (${action.id})`);
 
+    const body = bodyOverride ?? action.body;
     const entry: RunningEntry = {
       channel,
       stderrBuf: "",
@@ -68,7 +69,7 @@ export class ActionRunner implements vscode.Disposable {
       progressTimer: undefined,
       handle: spawnClaude({
         cwd: this.workspaceRoot,
-        prompt: composeRunPrompt(action.body),
+        prompt: composeRunPrompt(body),
         onStdoutChunk: (text) => channel.append(text),
         onStderrChunk: (text) => {
           channel.append(text);

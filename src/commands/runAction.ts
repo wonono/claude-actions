@@ -2,6 +2,12 @@ import * as vscode from "vscode";
 import { Action } from "../actions/ActionModel";
 import { ActionStore } from "../actions/ActionStore";
 import { ActionRunner } from "../actions/ActionRunner";
+import {
+  hasPlaceholder,
+  resolveParameter,
+  substituteParameter,
+} from "../actions/parameterResolver";
+import { getWorkspaceRoot } from "../util/workspace";
 
 export function registerRunCommand(
   store: ActionStore,
@@ -9,7 +15,7 @@ export function registerRunCommand(
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
     "claude-actions.run",
-    (target: unknown) => {
+    async (target: unknown) => {
       const action = resolveAction(target, store);
       if (!action) {
         vscode.window.showWarningMessage("Select an action from the sidebar.");
@@ -18,7 +24,29 @@ export function registerRunCommand(
       if (runner.isRunning(action.id)) {
         return;
       }
-      runner.start(action);
+
+      let body = action.body;
+      if (action.parameter) {
+        const root = getWorkspaceRoot();
+        if (!root) {
+          vscode.window.showErrorMessage("Open a folder before running a parameterised action.");
+          return;
+        }
+        const value = await resolveParameter(action.parameter, root);
+        if (value === undefined) {
+          // User cancelled the QuickPick — abort silently.
+          return;
+        }
+        if (!hasPlaceholder(body)) {
+          vscode.window.showWarningMessage(
+            `Action "${action.name}" declares a parameter but its prompt has no \`{{parameter}}\` placeholder — the chosen value will be ignored.`,
+          );
+        } else {
+          body = substituteParameter(body, value);
+        }
+      }
+
+      runner.start(action, body);
     },
   );
 }

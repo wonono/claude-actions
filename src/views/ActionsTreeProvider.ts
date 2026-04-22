@@ -174,6 +174,15 @@ function buildTooltip(action: Action): vscode.MarkdownString {
   if (action.description) {
     md.appendMarkdown(`${action.description}\n\n`);
   }
+  if (action.parameter) {
+    const suffix =
+      action.parameter.kind === "text"
+        ? " (free text)"
+        : action.parameter.multiple
+        ? " (multi-select)"
+        : "";
+    md.appendMarkdown(`Parameter: *${action.parameter.name}*${suffix}\n\n`);
+  }
   md.appendMarkdown(`\`${action.filePath}\`\n\n`);
   const preview = action.body.length > 240 ? action.body.slice(0, 240) + "…" : action.body;
   md.appendCodeblock(preview, "markdown");

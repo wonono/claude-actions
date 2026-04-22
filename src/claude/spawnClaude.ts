@@ -23,6 +23,10 @@ export function spawnClaude(opts: SpawnOptions): ClaudeHandle {
     cwd: opts.cwd,
     env: process.env,
     stdio: ["pipe", "pipe", "pipe"],
+    // On Windows, `claude` is a .cmd shim; Node's spawn refuses to execute
+    // .cmd/.bat without going through the shell. Argv is a fixed array (no
+    // user content — the prompt travels via stdin), so shell: true is safe.
+    shell: process.platform === "win32",
   });
 
   // Line buffering: emit complete lines. The trailing unterminated fragment

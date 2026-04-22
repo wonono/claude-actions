@@ -52,14 +52,20 @@ export class ClaudeVersionChecker implements vscode.Disposable {
 
   private readLocal(): Promise<string | undefined> {
     return new Promise((resolve) => {
-      execFile("claude", ["--version"], { timeout: 5000 }, (err, stdout) => {
-        if (err) {
-          resolve(undefined);
-          return;
-        }
-        const match = stdout.match(/(\d+\.\d+\.\d+)/);
-        resolve(match ? match[1] : undefined);
-      });
+      // shell: true is needed on Windows to execute the `claude.cmd` shim.
+      execFile(
+        "claude",
+        ["--version"],
+        { timeout: 5000, shell: process.platform === "win32" },
+        (err, stdout) => {
+          if (err) {
+            resolve(undefined);
+            return;
+          }
+          const match = stdout.match(/(\d+\.\d+\.\d+)/);
+          resolve(match ? match[1] : undefined);
+        },
+      );
     });
   }
 

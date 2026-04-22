@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "hooks/post-edit-build.sh"
+            "command": "node hooks/post-edit-build.mjs"
           }
         ]
       }
