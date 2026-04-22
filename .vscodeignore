@@ -1,0 +1,14 @@
+.vscode/**
+.vscode-test/**
+src/**
+node_modules/**
+tsconfig.json
+esbuild.config.mjs
+.gitignore
+.claude/**
+hooks/**
+**/*.md
+!README.md
+*.vsix
+.DS_Store
+claude-actions.code-workspace

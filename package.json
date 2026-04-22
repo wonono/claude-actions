@@ -1,0 +1,155 @@
+{
+  "name": "claude-actions",
+  "displayName": "Claude Actions",
+  "description": "Unofficial extension. Versioned, shareable Claude prompts runnable from the VS Code sidebar.",
+  "version": "0.0.25",
+  "publisher": "wonono",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wonono/claude-actions.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claude-actions",
+          "title": "Claude Actions (unofficial)",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "claude-actions": [
+        {
+          "id": "claude-actions.list",
+          "name": "Actions"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "claude-actions.list",
+        "contents": "Open a folder to use Claude Actions.\n[Open Folder](command:vscode.openFolder)",
+        "when": "workbenchState == empty"
+      },
+      {
+        "view": "claude-actions.list",
+        "contents": "No actions yet in this workspace.\n[Create an action](command:claude-actions.create)\n\nActions are versioned markdown files stored in `.actions/`.\n\nFirst time using Claude here?\n[Initialize workspace](command:claude-actions.initWorkspace)",
+        "when": "workbenchState != empty && claude-actions.noActions"
+      }
+    ],
+    "commands": [
+      {
+        "command": "claude-actions.run",
+        "title": "Run Action",
+        "icon": "$(play)"
+      },
+      {
+        "command": "claude-actions.stop",
+        "title": "Stop Action",
+        "icon": "$(close)"
+      },
+      {
+        "command": "claude-actions.create",
+        "title": "New Action",
+        "icon": "$(add)"
+      },
+      {
+        "command": "claude-actions.refresh",
+        "title": "Refresh Actions",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claude-actions.showOutput",
+        "title": "Show Action Output"
+      },
+      {
+        "command": "claude-actions.pin",
+        "title": "Pin Action",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "claude-actions.unpin",
+        "title": "Unpin Action",
+        "icon": "$(pinned)"
+      },
+      {
+        "command": "claude-actions.initWorkspace",
+        "title": "Claude Actions: Initialize Workspace for Claude",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "claude-actions.updateClaude",
+        "title": "Claude Actions: Update Claude CLI",
+        "icon": "$(cloud-download)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "claude-actions.updateClaude",
+          "when": "view == claude-actions.list && claude-actions.updateAvailable && !claude-actions.anyRunning && !claude-actions.updating",
+          "group": "navigation@0"
+        },
+        {
+          "command": "claude-actions.create",
+          "when": "view == claude-actions.list && !claude-actions.updating",
+          "group": "navigation@1"
+        },
+        {
+          "command": "claude-actions.refresh",
+          "when": "view == claude-actions.list",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "claude-actions.run",
+          "when": "view == claude-actions.list && viewItem =~ /^action\\.ready/ && !claude-actions.updating",
+          "group": "inline@1"
+        },
+        {
+          "command": "claude-actions.stop",
+          "when": "view == claude-actions.list && viewItem =~ /^action\\.in_progress/",
+          "group": "inline@1"
+        },
+        {
+          "command": "claude-actions.pin",
+          "when": "view == claude-actions.list && viewItem =~ /\\.unpinned$/",
+          "group": "inline@2"
+        },
+        {
+          "command": "claude-actions.unpin",
+          "when": "view == claude-actions.list && viewItem =~ /\\.pinned$/",
+          "group": "inline@2"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "package": "vsce package --out dist/",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^2.24.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  }
+}
