@@ -52,8 +52,14 @@ export function registerCreateCommand(logs: LogFactory): vscode.Disposable {
               channel.append(t);
               stderrBuf = (stderrBuf + t).slice(-4096);
             },
-            onExit: async (code, signal) => {
-              await handleCreationExit({
+            onExit: (code, signal) => {
+              // Close the progress notification as soon as claude exits.
+              // `handleCreationExit` awaits user interaction (showInfo /
+              // showError) — if we awaited it before resolve(), the
+              // "Creating action…" spinner would linger until the user
+              // clicked on the follow-up notification.
+              resolve();
+              void handleCreationExit({
                 code,
                 signal,
                 actionsDir,
@@ -61,7 +67,6 @@ export function registerCreateCommand(logs: LogFactory): vscode.Disposable {
                 channel,
                 stderrBuf,
               });
-              resolve();
             },
             onError: (err) => {
               if (err.code === "ENOENT") {
