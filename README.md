@@ -13,13 +13,21 @@ Teams accumulate Claude prompts for routine tasks (refactors, test generation, d
 | Requirement | Notes |
 |---|---|
 | **VS Code** ≥ 1.90 | |
-| **Node.js** ≥ 18 | Required by the Claude CLI and to build from source. |
+| **Node.js** ≥ 18 | Required by the Claude CLI. |
 | **Claude CLI** (`claude` on `PATH`) | [Install guide](https://docs.anthropic.com/en/docs/claude-code/quickstart). Minimum tested version: **2.1.80**. |
-| **`code` on `PATH`** | VS Code command palette → **Shell Command: Install 'code' command in PATH**. Needed for the auto-update reinstall flow. |
 
 ## Install
 
-Until the extension is published on the Marketplace, install the `.vsix` directly:
+From the VS Code Extensions view, search for **Claude Actions** (publisher `wonono`) and click **Install** — or run from a terminal:
+
+```bash
+code --install-extension wonono.claude-actions
+```
+
+Reload your VS Code window if it was already open — you should see a new ⚡ icon in the activity bar.
+
+<details>
+<summary>Install from source</summary>
 
 ```bash
 git clone https://github.com/wonono/claude-actions.git
@@ -30,7 +38,7 @@ npx @vscode/vsce package --out dist/ --no-dependencies
 code --install-extension dist/claude-actions-*.vsix --force
 ```
 
-Reload your VS Code window — you should see a new ⚡ icon in the activity bar.
+</details>
 
 ## Usage
 
@@ -41,6 +49,8 @@ Reload your VS Code window — you should see a new ⚡ icon in the activity bar
 3. Click the ▶ button next to an action. The icon turns into a spinner; an expanded child row shows the tail of Claude's output plus an uptime counter.
 4. When the action finishes, a notification appears. Click **Show output** to inspect the full transcript in the `Claude Actions: <action-name>` output channel.
 5. Click the **×** button to stop a running action (SIGTERM, SIGKILL after 2 s).
+
+Each action row exposes inline buttons on hover — **run** / **stop**, **show output**, **pin**, **delete**. **Show output** stays available even after the action has finished (or failed) so you can always inspect the last transcript without waiting on the notification.
 
 Actions run in **non-interactive mode** (`claude -p --dangerously-skip-permissions`) with a system prompt that forbids Claude from modifying `.claude/` or `.actions/`, asking questions, or running destructive shell commands.
 
@@ -53,6 +63,10 @@ Actions run in **non-interactive mode** (`claude -p --dangerously-skip-permissio
 ### Pinning
 
 Click the 📌 pin icon next to any action to pin it. Pinned actions are sorted alphabetically at the top of the list; unpinned ones follow, also alphabetical. Pins are per-user, per-workspace (stored in VS Code's workspace state) — your teammates won't see them.
+
+### Deleting an action
+
+Click the 🗑 icon on an action row. A modal asks for confirmation; on accept, the file is moved to the OS trash (recoverable) and the sidebar refreshes. Deletion is disabled while the action is running — stop it first.
 
 ### Failure handling
 
@@ -121,7 +135,7 @@ Draft a release note for the "{{channel}}" channel summarizing: {{summary}}.
 **Two kinds:**
 
 - `kind: pick` — the user picks from a fixed set of values (VS Code QuickPick). Values come from `values.from: static` (inline `list:`) or `values.from: directory` (enumerate subdirs or files under `values.path:`). Set `multiple: true` to allow multi-select — the placeholder then receives a comma-joined string.
-- `kind: text` — the user types free text (VS Code InputBox). Optional `placeholder:` shows a greyed-out example.
+- `kind: text` — the user types free text (VS Code InputBox). Optional `placeholder:` shows a greyed-out example. Set `defaultFrom: activeFile` to pre-fill the input with the workspace-relative path of the file currently focused in the editor — handy for actions that target "whatever I'm looking at" (`convert-blade`, `summarize-current-md`, etc.). The value is editable; the user just hits Enter to confirm. If no editor is focused, or the file lives outside the workspace, the field opens empty.
 
 **Key rules:**
 
@@ -169,7 +183,7 @@ npm run watch          # rebuild on save (esbuild in watch mode)
 
 Press **F5** in VS Code to launch an Extension Development Host with the latest build. The project uses esbuild to bundle `src/extension.ts` into `dist/extension.js`.
 
-A post-edit hook (`hooks/post-edit-build.sh`) can auto-bump the patch version, rebuild, package the `.vsix`, and reinstall the extension — see `.claude/settings.json` for wiring details.
+A post-edit hook (`hooks/post-edit-build.mjs`) can auto-bump the patch version, rebuild, package the `.vsix`, and reinstall the extension locally — see `.claude/settings.json` for wiring details. The auto-install step requires `code` to be on your `PATH` (VS Code command palette → **Shell Command: Install 'code' command in PATH**).
 
 ## Contributing
 

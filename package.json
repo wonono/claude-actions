@@ -2,7 +2,7 @@
   "name": "claude-actions",
   "displayName": "Claude Actions",
   "description": "Unofficial extension. Versioned, shareable Claude prompts runnable from the VS Code sidebar.",
-  "version": "0.1.66",
+  "version": "0.2.0",
   "publisher": "wonono",
   "license": "MIT",
   "icon": "media/icon.png",

@@ -5,6 +5,30 @@ All notable changes to the Claude Actions extension are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-04-23
+
+### Added
+- **Multi-parameter actions** — an action can now declare any number of parameters via a top-level `parameters:` list; each entry has a `key`, referenced in the body as `{{key}}`. Parameters are prompted sequentially in declaration order (QuickPick for `pick`, InputBox for `text`); cancelling any step aborts the whole run.
+- **`defaultFrom: activeFile`** (on `kind: text`) — pre-fills the InputBox with the workspace-relative path of the focused editor. The value is editable; the user hits Enter to confirm. Falls back to an empty field when no editor is focused or the file lives outside the workspace.
+- **Semantic failure detection** — the run-prompt contract now asks Claude to finish with a single line, either `done` or `failed: <reason>`. The extension parses this tail and treats a `failed:` marker as a failed run even when exit code is 0. Keeps the final-response token count minimal.
+- **Failed-run UI**:
+  - Action icon tints red until the next successful re-run.
+  - New status bar item (bottom-left, red background) listing the number of unacknowledged failed runs. Click it to jump to the corresponding output channel, which also dismisses the alert. Re-running an action clears its alert too.
+- **Inline "show output" button** on every action row — the output channel lives for the whole session, so the transcript stays accessible after the completion notification is gone.
+- **Inline "delete" button** with a confirmation modal — moves the action file to the OS trash (recoverable). Disabled while the action is running.
+- **Live uptime counter** — the running sub-item refreshes once per second independently of stdout activity (previously the counter appeared frozen between output chunks).
+- **Marketplace listing** — the extension is now published under publisher `wonono`; install via `code --install-extension wonono.claude-actions` or from the Extensions view.
+
+### Changed
+- **Minimal final response** — Claude is instructed to emit only `done` / `failed: <reason>` at the end, skipping the usual summary. Action runs are one-shot and the user never reads the conversation, so this trims tokens without losing information.
+- **Action row context menu** — reorganized inline buttons (run/stop, show output, pin/unpin, delete).
+
+### Fixed
+- **"Creating action…" notification stayed open after completion** — the progress spinner used to wait for the follow-up "Action created" info message to be dismissed. It now resolves as soon as the `claude` process exits.
+
+### Compatibility
+- Existing actions using the singular `parameter:` block (with no `key:` field) keep working: they're normalized into a one-item list whose key defaults to `parameter`, so `{{parameter}}` in the body is still substituted as before.
+
 ## [0.1.0] — 2026-04-22
 
 Initial public release.
