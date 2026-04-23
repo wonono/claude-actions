@@ -1,26 +1,39 @@
 import * as vscode from "vscode";
 import { ActionParameter, PickParameter } from "./ActionModel";
 
-const PLACEHOLDER = /\{\{\s*parameter\s*\}\}/g;
+const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*\}\}/g;
 
 /**
- * Prompts the user for the parameter value via the appropriate UI (QuickPick
- * for "pick", InputBox for "text") and returns the final value to substitute
- * into the prompt body. Returns `undefined` if the user cancelled, or if no
- * values are available (notification shown).
+ * Prompts the user once per parameter in declaration order (QuickPick for
+ * "pick", InputBox for "text") and returns a key→value map. Returns
+ * `undefined` if the user cancels any step — the whole run aborts.
  */
-export async function resolveParameter(
+export async function resolveParameters(
+  params: readonly ActionParameter[],
+  workspaceRoot: vscode.Uri,
+): Promise<Map<string, string> | undefined> {
+  const out = new Map<string, string>();
+  for (const param of params) {
+    const value = await resolveOne(param, workspaceRoot);
+    if (value === undefined) {
+      return undefined;
+    }
+    out.set(param.key, value);
+  }
+  return out;
+}
+
+async function resolveOne(
   param: ActionParameter,
   workspaceRoot: vscode.Uri,
 ): Promise<string | undefined> {
   if (param.kind === "text") {
-    const value = await vscode.window.showInputBox({
+    return vscode.window.showInputBox({
       title: param.name,
       prompt: param.description,
       placeHolder: param.placeholder,
       ignoreFocusOut: true,
     });
-    return value;
   }
   return resolvePickParameter(param, workspaceRoot);
 }
@@ -61,12 +74,27 @@ async function resolvePickParameter(
   return picked ?? undefined;
 }
 
-export function substituteParameter(body: string, value: string): string {
-  return body.replace(PLACEHOLDER, value);
+export function substituteParameters(
+  body: string,
+  values: ReadonlyMap<string, string>,
+): string {
+  return body.replace(PLACEHOLDER_RE, (match, key: string) => {
+    const v = values.get(key);
+    return v === undefined ? match : v;
+  });
 }
 
-export function hasPlaceholder(body: string): boolean {
-  return PLACEHOLDER.test(body);
+/**
+ * Returns the set of placeholder keys actually referenced in the body (each
+ * `{{key}}` occurrence). Useful for sanity-checking that declared parameters
+ * are wired to the prompt.
+ */
+export function placeholderKeys(body: string): Set<string> {
+  const keys = new Set<string>();
+  for (const m of body.matchAll(PLACEHOLDER_RE)) {
+    keys.add(m[1]);
+  }
+  return keys;
 }
 
 async function gatherValues(

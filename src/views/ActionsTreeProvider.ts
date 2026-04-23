@@ -197,14 +197,10 @@ function buildTooltip(action: Action, lastRun: LastRun | undefined): vscode.Mark
   if (action.description) {
     md.appendMarkdown(`${action.description}\n\n`);
   }
-  if (action.parameter) {
+  for (const p of action.parameters) {
     const suffix =
-      action.parameter.kind === "text"
-        ? " (free text)"
-        : action.parameter.multiple
-        ? " (multi-select)"
-        : "";
-    md.appendMarkdown(`Parameter: *${action.parameter.name}*${suffix}\n\n`);
+      p.kind === "text" ? " (free text)" : p.multiple ? " (multi-select)" : "";
+    md.appendMarkdown(`Parameter \`{{${p.key}}}\`: *${p.name}*${suffix}\n\n`);
   }
   if (lastRun) {
     const when = new Date(lastRun.endedAt).toLocaleString();

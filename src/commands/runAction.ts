@@ -3,9 +3,9 @@ import { Action } from "../actions/ActionModel";
 import { ActionStore } from "../actions/ActionStore";
 import { ActionRunner } from "../actions/ActionRunner";
 import {
-  hasPlaceholder,
-  resolveParameter,
-  substituteParameter,
+  placeholderKeys,
+  resolveParameters,
+  substituteParameters,
 } from "../actions/parameterResolver";
 import { getWorkspaceRoot } from "../util/workspace";
 
@@ -26,24 +26,28 @@ export function registerRunCommand(
       }
 
       let body = action.body;
-      if (action.parameter) {
+      if (action.parameters.length > 0) {
         const root = getWorkspaceRoot();
         if (!root) {
           vscode.window.showErrorMessage("Open a folder before running a parameterised action.");
           return;
         }
-        const value = await resolveParameter(action.parameter, root);
-        if (value === undefined) {
-          // User cancelled the QuickPick — abort silently.
+        const values = await resolveParameters(action.parameters, root);
+        if (values === undefined) {
+          // Any step cancelled — abort silently.
           return;
         }
-        if (!hasPlaceholder(body)) {
+
+        const keys = placeholderKeys(body);
+        const unused = action.parameters
+          .filter((p) => !keys.has(p.key))
+          .map((p) => `{{${p.key}}}`);
+        if (unused.length === action.parameters.length) {
           vscode.window.showWarningMessage(
-            `Action "${action.name}" declares a parameter but its prompt has no \`{{parameter}}\` placeholder — the chosen value will be ignored.`,
+            `Action "${action.name}" declares ${action.parameters.length} parameter(s) but the prompt uses none of them (expected one of ${unused.join(", ")}).`,
           );
-        } else {
-          body = substituteParameter(body, value);
         }
+        body = substituteParameters(body, values);
       }
 
       runner.start(action, body);

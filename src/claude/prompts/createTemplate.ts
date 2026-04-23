@@ -12,33 +12,34 @@ Strict operational rules:
   description below.
 - The filename must be kebab-case and end in \`.md\` (e.g. \`.actions/refactor-module.md\`).
   If a file with that name already exists, suffix with \`-2\`, \`-3\`, etc.
-- The file MUST follow this structure. The \`parameter\` block is optional — include it only if
-  the user's description implies one (see "Parameters" below):
+- The file MUST follow this structure. The \`parameters\` block is optional — include it only
+  if the user's description implies one or more parameters (see "Parameters" below):
 
     ---
     id: <kebab-case id, identical to the filename slug>
     name: <short human-readable name, Title Case>
     description: <one sentence, under 120 characters>
     icon: <a valid VS Code codicon id, e.g. "wrench", "beaker", "rocket", "zap">
-    parameter:                      # OPTIONAL
-      kind: <"pick" | "text">       # defaults to "pick" when omitted
-      name: <short label shown to the user, e.g. "Site">
-      description: <helper text under the title>
+    parameters:                       # OPTIONAL — a YAML list, one entry per parameter
+      - kind: <"pick" | "text">       # defaults to "pick" when omitted
+        key: <identifier used in the body as {{key}}, e.g. "site", "message">
+        name: <short label shown to the user, e.g. "Site">
+        description: <helper text under the title>
 
-      # -------- if kind = pick --------
-      multiple: <true | false>
-      values:
-        from: <"static" | "directory">
-        # if from = static:
-        list:
-          - value-1
-          - value-2
-        # if from = directory:
-        path: <relative path under the workspace root, e.g. "sites/">
-        mode: <"dirs" | "files">    # defaults to dirs
+        # -------- if kind = pick --------
+        multiple: <true | false>
+        values:
+          from: <"static" | "directory">
+          # if from = static:
+          list:
+            - value-1
+            - value-2
+          # if from = directory:
+          path: <relative path under the workspace root, e.g. "sites/">
+          mode: <"dirs" | "files">    # defaults to dirs
 
-      # -------- if kind = text --------
-      placeholder: <example value shown greyed out in the input box>
+        # -------- if kind = text --------
+        placeholder: <example value shown greyed out in the input box>
     ---
 
     <Prompt body, in English.>
@@ -53,8 +54,20 @@ Strict operational rules:
 
 ## Parameters
 
-A parameter lets the user supply a value right before the action runs. At runtime, the string
-\`{{parameter}}\` in the body is replaced with the user's input.
+A parameter lets the user supply a value right before the action runs. An action can declare
+zero, one, or several parameters. Each parameter has a \`key\` — at runtime, every occurrence
+of \`{{key}}\` in the body is replaced with the user's input for that parameter. The user is
+prompted once per parameter, in declaration order.
+
+The \`key\` must be a simple identifier (letters, digits, underscores, dashes; no spaces).
+Pick a short, descriptive key — e.g. \`site\`, \`message\`, \`tone\`, \`env\`. Two parameters
+in the same action must not share a key. Keep the keys lowercase by convention.
+
+### Single-parameter shortcut
+
+For back-compat, a singular \`parameter:\` block (without \`key\`) is still accepted — it acts
+like a one-item \`parameters\` list whose key defaults to \`parameter\`, so \`{{parameter}}\`
+works in the body. Prefer the plural \`parameters:\` list for new actions.
 
 ### Choosing the kind
 
@@ -81,7 +94,7 @@ the domain (e.g. \`sites/\`, \`services/\`, \`envs/\`), prefer \`from: directory
   enumerated.
 - Set \`multiple: true\` when the user mentions "one or more", "select some", "each selected",
   or the action naturally operates on a batch. Otherwise \`false\`. With \`multiple: true\`,
-  \`{{parameter}}\` receives a comma-joined string of the selected values.
+  the \`{{key}}\` placeholder receives a comma-joined string of the selected values.
 
 ### For kind: text
 
@@ -99,30 +112,31 @@ bracket, or any other YAML-special character, wrap it in double quotes. Same app
 
 ### Placeholder in the body
 
-Include \`{{parameter}}\` exactly once in the most natural place — usually right after stating
-the goal ("Purge Cloudflare cache for: {{parameter}}" or "Write a commit message based on:
-{{parameter}}"). For \`multiple: true\`, the inserted string is already comma-joined; the body
-should phrase itself naturally around that ("For each of {{parameter}}...").
+Reference each parameter by its \`key\`: \`{{site}}\`, \`{{message}}\`, etc. Every declared
+parameter should appear at least once in the body — otherwise the collected value is
+thrown away. For a \`multiple: true\` pick, the inserted string is already comma-joined;
+phrase the body naturally around that ("For each of {{sites}}...").
 
-### Example with kind: pick (directory source, multi)
+### Example with one pick parameter (directory source, multi)
 
     ---
     id: cloudflare-purge
     name: Cloudflare Purge
     description: Purge Cloudflare cache for one or more selected sites
     icon: zap
-    parameter:
-      kind: pick
-      name: Site
-      description: Which site(s) to purge
-      multiple: true
-      values:
-        from: directory
-        path: sites/
-        mode: dirs
+    parameters:
+      - kind: pick
+        key: sites
+        name: Site
+        description: Which site(s) to purge
+        multiple: true
+        values:
+          from: directory
+          path: sites/
+          mode: dirs
     ---
 
-    Purge Cloudflare cache for the following site(s): {{parameter}}
+    Purge Cloudflare cache for the following site(s): {{sites}}
 
     Run non-interactively. For each site listed above, read its config under
     \`sites/<site>/\` to find the Cloudflare zone ID, then call the Cloudflare
@@ -131,27 +145,58 @@ should phrase itself naturally around that ("For each of {{parameter}}...").
     Never touch \`.claude/\` or \`.actions/\`. End with a short summary of which
     zones were purged.
 
-### Example with kind: text
+### Example with one text parameter
 
     ---
     id: commit-with-message
     name: Commit With Message
     description: Stage all changes and commit with a message you provide
     icon: git-commit
-    parameter:
-      kind: text
-      name: Commit message
-      description: The commit subject, written in imperative mood
-      placeholder: "fix(auth): handle expired tokens on refresh"
+    parameters:
+      - kind: text
+        key: message
+        name: Commit message
+        description: The commit subject, written in imperative mood
+        placeholder: "fix(auth): handle expired tokens on refresh"
     ---
 
-    Create a git commit with this message: {{parameter}}
+    Create a git commit with this message: {{message}}
 
     Run non-interactively. Stage all changes (git add -A), then commit with the
     message above. If there are no changes, skip the commit and say so.
 
     Never touch \`.claude/\` or \`.actions/\`. End with the resulting commit SHA
     or a note explaining why no commit was made.
+
+### Example with two parameters (pick + text)
+
+    ---
+    id: write-release-note
+    name: Write Release Note
+    description: Draft a release note for a given channel with a custom summary
+    icon: megaphone
+    parameters:
+      - kind: pick
+        key: channel
+        name: Channel
+        description: Which channel is this release targeting?
+        values:
+          from: static
+          list:
+            - stable
+            - beta
+            - nightly
+      - kind: text
+        key: summary
+        name: Summary
+        description: One-line summary of what ships
+        placeholder: "ship faster cache invalidation"
+    ---
+
+    Draft a release note for the "{{channel}}" channel summarizing: {{summary}}.
+
+    Run non-interactively. Write the note in \`docs/releases/\` following the
+    existing format. Never touch \`.claude/\` or \`.actions/\`.
 
 User's description of the action to create:
 

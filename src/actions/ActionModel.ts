@@ -6,6 +6,7 @@ export type ParameterValuesSource =
 
 export interface PickParameter {
   kind: "pick";
+  key: string;
   name: string;
   description: string | undefined;
   multiple: boolean;
@@ -14,6 +15,7 @@ export interface PickParameter {
 
 export interface TextParameter {
   kind: "text";
+  key: string;
   name: string;
   description: string | undefined;
   placeholder: string | undefined;
@@ -28,7 +30,7 @@ export interface Action {
   icon: string;
   body: string;
   filePath: string;
-  parameter: ActionParameter | undefined;
+  parameters: ActionParameter[];
 }
 
 export interface ActionParseResult {
@@ -78,7 +80,13 @@ function parseValuesSource(
   return undefined;
 }
 
-function parseParameter(raw: unknown, warnings: string[]): ActionParameter | undefined {
+const KEY_RE = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
+
+function parseSingleParameter(
+  raw: unknown,
+  defaultKey: string,
+  warnings: string[],
+): ActionParameter | undefined {
   if (raw === undefined || raw === null) {
     return undefined;
   }
@@ -88,6 +96,7 @@ function parseParameter(raw: unknown, warnings: string[]): ActionParameter | und
   }
   const p = raw as {
     kind?: unknown;
+    key?: unknown;
     name?: unknown;
     description?: unknown;
     multiple?: unknown;
@@ -99,6 +108,16 @@ function parseParameter(raw: unknown, warnings: string[]): ActionParameter | und
     warnings.push("parameter.name is required");
     return undefined;
   }
+
+  let key = typeof p.key === "string" ? p.key.trim() : "";
+  if (!key) {
+    key = defaultKey;
+  } else if (!KEY_RE.test(key)) {
+    warnings.push(
+      `parameter.key "${key}" must match ${KEY_RE} — the placeholder {{${key}}} may not be substituted`,
+    );
+  }
+
   const description = typeof p.description === "string" && p.description.trim()
     ? p.description.trim()
     : undefined;
@@ -111,7 +130,7 @@ function parseParameter(raw: unknown, warnings: string[]): ActionParameter | und
     const placeholder = typeof p.placeholder === "string" && p.placeholder.trim()
       ? p.placeholder.trim()
       : undefined;
-    return { kind: "text", name, description, placeholder };
+    return { kind: "text", key, name, description, placeholder };
   }
 
   const values = parseValuesSource(p.values, warnings);
@@ -120,11 +139,45 @@ function parseParameter(raw: unknown, warnings: string[]): ActionParameter | und
   }
   return {
     kind: "pick",
+    key,
     name,
     description,
     multiple: Boolean(p.multiple),
     values,
   };
+}
+
+function parseParameters(
+  singular: unknown,
+  plural: unknown,
+  warnings: string[],
+): ActionParameter[] {
+  // Plural form wins if present. This lets authors upgrade to multiple params
+  // by renaming `parameter:` to `parameters:` and wrapping in a list.
+  if (Array.isArray(plural)) {
+    const out: ActionParameter[] = [];
+    const seen = new Set<string>();
+    plural.forEach((entry, i) => {
+      const parsed = parseSingleParameter(entry, `param${i + 1}`, warnings);
+      if (!parsed) {
+        return;
+      }
+      if (seen.has(parsed.key)) {
+        warnings.push(`duplicate parameter key "${parsed.key}" — later entry ignored`);
+        return;
+      }
+      seen.add(parsed.key);
+      out.push(parsed);
+    });
+    return out;
+  }
+  if (plural !== undefined && plural !== null) {
+    warnings.push("parameters must be an array");
+  }
+  // Fallback to the legacy singular form. Default its key to "parameter" so
+  // existing actions (with `{{parameter}}` in the body) keep working.
+  const one = parseSingleParameter(singular, "parameter", warnings);
+  return one ? [one] : [];
 }
 
 export function parseAction(raw: string, filePath: string, fileName: string): ActionParseResult {
@@ -156,10 +209,10 @@ export function parseAction(raw: string, filePath: string, fileName: string): Ac
   const name = typeof data.name === "string" && data.name.trim() ? data.name.trim() : slug;
   const description = typeof data.description === "string" ? data.description.trim() : "";
   const icon = typeof data.icon === "string" && data.icon.trim() ? data.icon.trim() : DEFAULT_ICON;
-  const parameter = parseParameter(data.parameter, warnings);
+  const parameters = parseParameters(data.parameter, data.parameters, warnings);
 
   return {
-    action: { id, name, description, icon, body, filePath, parameter },
+    action: { id, name, description, icon, body, filePath, parameters },
     warnings,
   };
 }
