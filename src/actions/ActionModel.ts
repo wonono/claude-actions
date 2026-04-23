@@ -13,12 +13,15 @@ export interface PickParameter {
   values: ParameterValuesSource;
 }
 
+export type TextDefaultSource = "activeFile";
+
 export interface TextParameter {
   kind: "text";
   key: string;
   name: string;
   description: string | undefined;
   placeholder: string | undefined;
+  defaultFrom: TextDefaultSource | undefined;
 }
 
 export type ActionParameter = PickParameter | TextParameter;
@@ -102,6 +105,7 @@ function parseSingleParameter(
     multiple?: unknown;
     values?: unknown;
     placeholder?: unknown;
+    defaultFrom?: unknown;
   };
   const name = typeof p.name === "string" ? p.name.trim() : "";
   if (!name) {
@@ -130,7 +134,15 @@ function parseSingleParameter(
     const placeholder = typeof p.placeholder === "string" && p.placeholder.trim()
       ? p.placeholder.trim()
       : undefined;
-    return { kind: "text", key, name, description, placeholder };
+    let defaultFrom: TextDefaultSource | undefined;
+    if (p.defaultFrom === "activeFile") {
+      defaultFrom = "activeFile";
+    } else if (p.defaultFrom !== undefined && p.defaultFrom !== null) {
+      warnings.push(
+        `parameter.defaultFrom "${String(p.defaultFrom)}" is unknown — only "activeFile" is supported`,
+      );
+    }
+    return { kind: "text", key, name, description, placeholder, defaultFrom };
   }
 
   const values = parseValuesSource(p.values, warnings);

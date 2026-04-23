@@ -28,14 +28,38 @@ async function resolveOne(
   workspaceRoot: vscode.Uri,
 ): Promise<string | undefined> {
   if (param.kind === "text") {
+    const prefill =
+      param.defaultFrom === "activeFile" ? activeFileRelativePath() : undefined;
     return vscode.window.showInputBox({
       title: param.name,
       prompt: param.description,
       placeHolder: param.placeholder,
+      value: prefill,
       ignoreFocusOut: true,
     });
   }
   return resolvePickParameter(param, workspaceRoot);
+}
+
+/**
+ * Path of the focused editor, made relative to the workspace root for
+ * portability. Returns undefined if no editor is focused or the active file
+ * lives outside the workspace — in that case the InputBox opens empty rather
+ * than pre-filling an absolute path that is rarely what the user wants.
+ */
+function activeFileRelativePath(): string | undefined {
+  const active = vscode.window.activeTextEditor?.document.uri;
+  if (!active || active.scheme !== "file") {
+    return undefined;
+  }
+  const rel = vscode.workspace.asRelativePath(active, false);
+  // asRelativePath returns the original absolute path if the file is outside
+  // every workspace folder — in that case we'd rather open the InputBox
+  // empty than pre-fill an absolute path the user likely doesn't want.
+  if (rel === active.fsPath) {
+    return undefined;
+  }
+  return rel;
 }
 
 async function resolvePickParameter(

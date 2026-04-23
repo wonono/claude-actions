@@ -40,6 +40,10 @@ Strict operational rules:
 
         # -------- if kind = text --------
         placeholder: <example value shown greyed out in the input box>
+        defaultFrom: <"activeFile">  # OPTIONAL — pre-fill the input with the
+                                     # workspace-relative path of the file
+                                     # currently focused in the editor. The
+                                     # user can still edit it before confirming.
     ---
 
     <Prompt body, in English.>
@@ -109,6 +113,14 @@ the input box and it anchors their expectations. Keep it short (under 60 chars).
 bracket, or any other YAML-special character, wrap it in double quotes. Same applies to
 \`description\` and \`name\` when they contain special characters. Example:
 \`placeholder: "fix(auth): handle expired tokens"\`.
+
+**Pre-fill with the active file**: when the parameter is clearly about "the file I'm
+looking at right now" (e.g. "convert the current Blade template", "summarize the open
+markdown", "run tests for the focused spec"), add \`defaultFrom: activeFile\`. The InputBox
+then opens pre-filled with the workspace-relative path of whichever editor has focus —
+the user just hits Enter to confirm, or edits it first. If no editor is focused, or the
+file lives outside the workspace, the field opens empty (no breakage). Only supported on
+\`kind: text\`.
 
 ### Placeholder in the body
 
