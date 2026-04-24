@@ -3,6 +3,7 @@ id: test-active-file
 name: Test Active File
 description: Run a quick test analysis on the currently focused file
 icon: beaker
+category: Debug
 parameters:
   - kind: text
     key: file

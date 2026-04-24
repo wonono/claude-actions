@@ -3,6 +3,7 @@ id: echo-multi
 name: Echo Multi Parameter
 description: Echo back several values selected via checkboxes to verify multi-select
 icon: checklist
+category: Debug
 parameter:
   kind: pick
   name: Values

@@ -3,6 +3,7 @@ id: echo-text
 name: Echo Text Parameter
 description: Echo back the free-text value typed by the user
 icon: symbol-string
+category: Debug
 parameter:
   kind: text
   name: Message

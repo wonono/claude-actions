@@ -3,6 +3,7 @@ id: update-readme
 name: Update README
 description: Refresh README.md to match the current state of the project
 icon: book
+category: Documentation
 ---
 
 Update the `README.md` at the repo root so it accurately describes the current state of the

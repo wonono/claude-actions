@@ -3,6 +3,7 @@ id: test-actions-file-picker
 name: Test Actions File Picker
 description: Test picking action files from .actions/ with checkboxes and returning the selection
 icon: beaker
+category: Debug
 parameters:
   - kind: pick
     key: actions

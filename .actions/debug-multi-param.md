@@ -3,6 +3,7 @@ id: debug-multi-param
 name: Debug — Multi Parameters
 description: Echoes a chosen tone and a free-text message. Used to test multi-parameter prompting.
 icon: symbol-parameter
+category: Debug
 parameters:
   - kind: pick
     key: tone

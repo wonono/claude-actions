@@ -62,7 +62,15 @@ Actions run in **non-interactive mode** (`claude -p --dangerously-skip-permissio
 
 ### Pinning
 
-Click the 📌 pin icon next to any action to pin it. Pinned actions are sorted alphabetically at the top of the list; unpinned ones follow, also alphabetical. Pins are per-user, per-workspace (stored in VS Code's workspace state) — your teammates won't see them.
+Click the 📌 pin icon next to any action to pin it. Pinned actions are grouped at the very top of the sidebar, above every category. Pins are per-user, per-workspace (stored in VS Code's workspace state) — your teammates won't see them.
+
+### Categories
+
+Actions can declare a `category:` field in their frontmatter. The sidebar groups actions by category, with "Pinned" first (if any), then each category alphabetically, then "Uncategorized" last (any action without a category). Categories start collapsed — "Pinned" starts expanded — and your expand/collapse state is remembered per workspace.
+
+When you create an action via the **+** button, Claude picks a category for you. It reuses one of the existing category names from `.actions/` if a match makes sense, otherwise invents a new concise one. The chosen category is shown in the creation notification (`Action "foo.md" created in category "Testing".`).
+
+Categories are compared case-sensitively — `Testing` and `testing` are two different buckets. If you notice a split you didn't intend, rename the frontmatter value in one of the files to normalize.
 
 ### Deleting an action
 
@@ -86,6 +94,7 @@ id: kebab-case-id
 name: Short Human Name
 description: One sentence under 120 chars, shown in the sidebar
 icon: wrench
+category: Testing          # optional — missing/empty falls back to "Uncategorized"
 ---
 
 The full prompt goes here, in English.
@@ -97,6 +106,7 @@ Rules:
 
 - `id` is the stable identity. Rename the file freely — as long as `id` stays, it's the same action.
 - `icon` is a [VS Code codicon ID](https://microsoft.github.io/vscode-codicons/dist/codicon.html).
+- `category` is optional; a missing or empty value groups the action under "Uncategorized". See [Categories](#categories).
 - **Actions must be written in English**, even if the consuming repo is not. This keeps them portable across teams.
 - The body of the markdown *is* the prompt. The extension wraps it with system-level rules before sending it to Claude.
 - The final line of Claude's response signals outcome: `done` (success) or `failed: <reason>` (semantic failure, see [Failure handling](#failure-handling)). The extension parses this to decide the run state.

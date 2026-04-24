@@ -3,6 +3,7 @@ id: echo-parameter
 name: Echo Parameter
 description: Echo the selected parameter value to verify parameter substitution works
 icon: beaker
+category: Debug
 parameter:
   name: Value
   description: Pick a value to echo back

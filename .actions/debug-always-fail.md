@@ -3,6 +3,7 @@ id: debug-always-fail
 name: Debug — Always Fail
 description: Always reports a simulated failure. Used to test the failure UI (red icon, status bar alert).
 icon: bug
+category: Debug
 ---
 
 Do not perform any task. Do not read, create, or modify any file. Do not run any shell command.

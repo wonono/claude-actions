@@ -5,6 +5,16 @@ All notable changes to the Claude Actions extension are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-04-24
+
+### Added
+- **Categories** — actions can declare a `category:` field in their frontmatter. The sidebar now groups actions by category: "Pinned" on top (if any), then each category alphabetically, then "Uncategorized" last. Pinned actions always live in "Pinned" regardless of their category. Categories are compared case-sensitively (`Testing` ≠ `testing`).
+- **Category-aware create flow** — when creating an action via the **+** button, Claude is given the list of categories already used in `.actions/` and is instructed to reuse one verbatim when it fits, or invent a concise new one otherwise. The creation notification now mentions the chosen category (`Action "foo.md" created in category "Testing".`).
+- **Persistent group expand/collapse** — group expansion state (per workspace, per user) is stored in `workspaceState`. "Pinned" starts expanded by default; all other groups start collapsed. Folder icon flips between `folder` and `folder-opened` to mirror the state.
+
+### Changed
+- **Sidebar grouping** — when at least one action declares a category, the legacy "Pinned" / "Actions" split is replaced by the category layout above. Workspaces that don't use categories keep the previous behavior (flat list, or "Pinned" + "Actions" when pins exist).
+
 ## [0.2.0] — 2026-04-23
 
 ### Added

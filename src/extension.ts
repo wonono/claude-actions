@@ -64,7 +64,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const versionChecker = new ClaudeVersionChecker(log);
   context.subscriptions.push(versionChecker);
 
-  const treeProvider = new ActionsTreeProvider(store, runner, pins, lastRuns);
+  const treeProvider = new ActionsTreeProvider(store, runner, pins, lastRuns, context.workspaceState);
   context.subscriptions.push(treeProvider);
 
   const failureStatusBar = new FailureStatusBar(store, runner);
@@ -73,6 +73,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     treeDataProvider: treeProvider,
   });
   context.subscriptions.push(treeView);
+  treeProvider.attachTreeView(treeView);
 
   // When an action starts running, force its row to expand so the progress
   // sub-item is visible without the user having to click. VS Code caches the
@@ -121,7 +122,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(d);
   }
   context.subscriptions.push(registerShowOutputCommand(logs));
-  context.subscriptions.push(registerCreateCommand(logs));
+  context.subscriptions.push(registerCreateCommand(store, logs));
   context.subscriptions.push(registerUpdateClaudeCommand(versionChecker));
   context.subscriptions.push(registerReviewFailureCommand(store, failureStatusBar, logs));
 

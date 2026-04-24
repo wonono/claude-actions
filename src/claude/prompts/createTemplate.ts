@@ -20,6 +20,7 @@ Strict operational rules:
     name: <short human-readable name, Title Case>
     description: <one sentence, under 120 characters>
     icon: <a valid VS Code codicon id, e.g. "wrench", "beaker", "rocket", "zap">
+    category: <short Title Case category name, e.g. "Testing", "Deployment">
     parameters:                       # OPTIONAL — a YAML list, one entry per parameter
       - kind: <"pick" | "text">       # defaults to "pick" when omitted
         key: <identifier used in the body as {{key}}, e.g. "site", "message">
@@ -55,6 +56,25 @@ Strict operational rules:
     - Not duplicate these operational rules verbatim — paraphrase them in the context of
       the action's purpose.
 - Produce exactly one file. Do not output anything to stdout beyond a brief confirmation.
+
+## Category
+
+Every action belongs to a category, used to group actions in the sidebar. Pick a short
+Title Case name (1–3 words, e.g. "Testing", "Deployment", "Code Review", "Git").
+
+Consistency matters — always reuse an existing category when the new action fits one,
+instead of inventing a near-synonym. The list of categories already used in this workspace
+is:
+
+{existingCategories}
+
+Rules:
+- If one of the categories above fits the action, reuse it **verbatim** (same casing).
+- Only invent a new category when none of the existing ones is a reasonable fit.
+- If the user's description explicitly names a category, honor that name even if it
+  differs in casing from an existing one — the user is the source of truth.
+- If you truly cannot decide, omit the \`category\` field; it will default to
+  "Uncategorized" in the sidebar.
 
 ## Parameters
 
@@ -136,6 +156,7 @@ phrase the body naturally around that ("For each of {{sites}}...").
     name: Cloudflare Purge
     description: Purge Cloudflare cache for one or more selected sites
     icon: zap
+    category: Deployment
     parameters:
       - kind: pick
         key: sites
@@ -164,6 +185,7 @@ phrase the body naturally around that ("For each of {{sites}}...").
     name: Commit With Message
     description: Stage all changes and commit with a message you provide
     icon: git-commit
+    category: Git
     parameters:
       - kind: text
         key: message
@@ -187,6 +209,7 @@ phrase the body naturally around that ("For each of {{sites}}...").
     name: Write Release Note
     description: Draft a release note for a given channel with a custom summary
     icon: megaphone
+    category: Release
     parameters:
       - kind: pick
         key: channel
@@ -215,6 +238,14 @@ User's description of the action to create:
 ---
 `;
 
-export function composeCreatePrompt(userDescription: string): string {
-  return CREATE_SYSTEM_PROMPT + userDescription.trim() + "\n";
+export function composeCreatePrompt(
+  userDescription: string,
+  existingCategories: readonly string[],
+): string {
+  const list =
+    existingCategories.length === 0
+      ? "(none yet — this will be the first action with a category)"
+      : existingCategories.map((c) => `- ${c}`).join("\n");
+  const filled = CREATE_SYSTEM_PROMPT.replace("{existingCategories}", list);
+  return filled + userDescription.trim() + "\n";
 }

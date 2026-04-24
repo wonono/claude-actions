@@ -3,6 +3,7 @@ id: generate-tests
 name: Generate Tests
 description: Generate unit tests for the source files that lack coverage
 icon: beaker
+category: Testing
 ---
 
 Generate unit tests for source files in this project that currently have no test coverage.

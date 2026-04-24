@@ -1,11 +1,13 @@
 import * as vscode from "vscode";
 import { composeCreatePrompt } from "../claude/prompts/createTemplate";
 import { spawnClaude } from "../claude/spawnClaude";
+import { ActionStore } from "../actions/ActionStore";
+import { parseAction } from "../actions/ActionModel";
 import { LogFactory } from "../util/log";
 import { ensureActionsDir, getActionsDir, getWorkspaceRoot } from "../util/workspace";
 import { looksLikeTrustError } from "../util/trustError";
 
-export function registerCreateCommand(logs: LogFactory): vscode.Disposable {
+export function registerCreateCommand(store: ActionStore, logs: LogFactory): vscode.Disposable {
   return vscode.commands.registerCommand("claude-actions.create", async () => {
     const root = getWorkspaceRoot();
     if (!root) {
@@ -29,10 +31,16 @@ export function registerCreateCommand(logs: LogFactory): vscode.Disposable {
     }
 
     const existingBefore = await snapshotActionFiles(actionsDir);
+    const existingCategories = collectCategories(store);
     const channel = logs.forAction("(creation)", "Action Creation");
     channel.clear();
     channel.appendLine(`[claude-actions] creating a new action`);
     channel.appendLine(`[claude-actions] user description: ${description.trim()}`);
+    if (existingCategories.length > 0) {
+      channel.appendLine(
+        `[claude-actions] existing categories: ${existingCategories.join(", ")}`,
+      );
+    }
 
     let stderrBuf = "";
 
@@ -46,7 +54,7 @@ export function registerCreateCommand(logs: LogFactory): vscode.Disposable {
         new Promise<void>((resolve) => {
           const handle = spawnClaude({
             cwd: root.fsPath,
-            prompt: composeCreatePrompt(description),
+            prompt: composeCreatePrompt(description, existingCategories),
             onStdoutChunk: (t) => channel.append(t),
             onStderrChunk: (t) => {
               channel.append(t);
@@ -90,6 +98,27 @@ export function registerCreateCommand(logs: LogFactory): vscode.Disposable {
   });
 }
 
+function collectCategories(store: ActionStore): string[] {
+  const seen = new Set<string>();
+  for (const a of store.getAll()) {
+    if (a.category) {
+      seen.add(a.category);
+    }
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b));
+}
+
+async function readCategoryFromFile(uri: vscode.Uri): Promise<string | undefined> {
+  try {
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    const text = Buffer.from(bytes).toString("utf8");
+    const { action } = parseAction(text, uri.fsPath, uri.path.split("/").pop() ?? "");
+    return action?.category;
+  } catch {
+    return undefined;
+  }
+}
+
 async function snapshotActionFiles(dir: vscode.Uri): Promise<Set<string>> {
   try {
     const entries = await vscode.workspace.fs.readDirectory(dir);
@@ -128,12 +157,13 @@ async function handleCreationExit(ctx: ExitContext): Promise<void> {
 
   if (code === 0 && newFiles.length >= 1) {
     const name = newFiles[0];
+    const fileUri = vscode.Uri.joinPath(actionsDir, name);
+    const category = (await readCategoryFromFile(fileUri)) ?? "Uncategorized";
     const choice = await vscode.window.showInformationMessage(
-      `Action "${name}" created.`,
+      `Action "${name}" created in category "${category}".`,
       "Open file",
     );
     if (choice === "Open file") {
-      const fileUri = vscode.Uri.joinPath(actionsDir, name);
       await vscode.commands.executeCommand("vscode.open", fileUri);
     }
     return;

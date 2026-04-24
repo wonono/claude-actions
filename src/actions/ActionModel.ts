@@ -31,6 +31,7 @@ export interface Action {
   name: string;
   description: string;
   icon: string;
+  category: string | undefined;
   body: string;
   filePath: string;
   parameters: ActionParameter[];
@@ -221,10 +222,12 @@ export function parseAction(raw: string, filePath: string, fileName: string): Ac
   const name = typeof data.name === "string" && data.name.trim() ? data.name.trim() : slug;
   const description = typeof data.description === "string" ? data.description.trim() : "";
   const icon = typeof data.icon === "string" && data.icon.trim() ? data.icon.trim() : DEFAULT_ICON;
+  const category =
+    typeof data.category === "string" && data.category.trim() ? data.category.trim() : undefined;
   const parameters = parseParameters(data.parameter, data.parameters, warnings);
 
   return {
-    action: { id, name, description, icon, body, filePath, parameters },
+    action: { id, name, description, icon, category, body, filePath, parameters },
     warnings,
   };
 }
